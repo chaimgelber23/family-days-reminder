@@ -1,0 +1,10 @@
+{
+  "placeholderImages": [
+    {
+      "id": "logo",
+      "description": "VMS Computer Check logo",
+      "imageUrl": "https://firebasestorage.googleapis.com/v0/b/vms-computer-check.appspot.com/o/VMS%20Official%20Old%20Logo.JPG?alt=media",
+      "imageHint": "scan logo"
+    }
+  ]
+}
