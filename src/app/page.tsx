@@ -6,7 +6,7 @@ import { EventModal } from '@/components/EventModal';
 import { FamilyEvent } from '@/lib/types';
 import { Timestamp, collection, doc, setDoc, deleteDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { SettingsModal } from '@/components/SettingsModal';
-import { Settings, Trash2, Calendar, Bell, LogOut } from 'lucide-react';
+import { Settings, Trash2, Calendar, Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser } from '@/firebase/provider';
@@ -27,7 +27,12 @@ export default function DashboardPage() {
     // Redirect to login if not authenticated
     useEffect(() => {
         if (!isUserLoading && !user) {
-            router.push('/login');
+            // Check if we are already on the login page to avoid loops (though router handles this usually)
+            // Wrap in setTimeout to avoid updating state/navigation during render phase if that's happening
+            const t = setTimeout(() => {
+                router.push('/login');
+            }, 100);
+            return () => clearTimeout(t);
         }
     }, [user, isUserLoading, router]);
 
