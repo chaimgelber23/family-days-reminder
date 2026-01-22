@@ -178,19 +178,8 @@ export default function DashboardPage() {
         );
     }
 
-
-
-    // Better approach: Redirect effect
-    useEffect(() => {
-        if (!isUserLoading && !user) {
-            // Import useRouter at top level first!
-            // implementation detail: assumes useRouter is imported
-        }
-    }, [user, isUserLoading]);
-
-    // Changing the rendering part:
     if (!user) {
-        return null; // Or a loading spinner while redirecting
+        return null; // Will redirect via the useEffect above
     }
 
     return (
