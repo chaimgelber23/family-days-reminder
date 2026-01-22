@@ -103,15 +103,16 @@ export function EventCalendar({ events, onAddEvent, onViewEvent }: EventCalendar
                     const isCurrentMonth = isSameMonth(day, monthStart);
 
                     // Filter events for this day
-                    // Note: This needs complex logic for recurring events/Hebrew events
-                    // For now, simple date matching for non-recurring
                     const dayEvents = events.filter(e => {
+                        const eventDate = e.gregorianDate.toDate();
+
                         if (e.isRecurring) {
-                            // TODO: Implement recurring match logic
-                            return false;
+                            // For recurring events, match month and day (ignore year)
+                            return eventDate.getMonth() === day.getMonth() &&
+                                   eventDate.getDate() === day.getDate();
                         }
-                        // Simple match for one-off events
-                        return isSameDay(e.gregorianDate.toDate(), day);
+                        // For non-recurring events, exact date match
+                        return isSameDay(eventDate, day);
                     });
 
                     return (
@@ -151,6 +152,8 @@ export function EventCalendar({ events, onAddEvent, onViewEvent }: EventCalendar
                                             event.type === 'birthday' && "bg-pink-100 text-pink-700 border-pink-200 border",
                                             event.type === 'anniversary' && "bg-blue-100 text-blue-700 border-blue-200 border",
                                             event.type === 'holiday' && "bg-purple-100 text-purple-700 border-purple-200 border",
+                                            event.type === 'yahrzeit' && "bg-gray-100 text-gray-700 border-gray-200 border",
+                                            event.type === 'custom' && "bg-green-100 text-green-700 border-green-200 border",
                                         )}
                                     >
                                         {event.title}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,7 +24,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser } from '@/firebase/provider';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import { useAuth } from '@/firebase/provider';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
     name: z.string().min(2, 'Name is required'),
@@ -40,6 +43,8 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const firestore = useFirestore();
     const { user } = useUser();
+    const auth = useAuth();
+    const router = useRouter();
     const userId = user?.uid || 'anonymous';
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -50,6 +55,28 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             defaultReminderDays: 1,
         },
     });
+
+    // Load existing user settings when modal opens
+    useEffect(() => {
+        if (isOpen && user) {
+            const loadUserSettings = async () => {
+                try {
+                    const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
+                        form.reset({
+                            name: data.name || '',
+                            phone: data.phone || '',
+                            defaultReminderDays: data.preferences?.defaultReminderDays || 1,
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading user settings:', error);
+                }
+            };
+            loadUserSettings();
+        }
+    }, [isOpen, user, firestore, form]);
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         try {
@@ -69,7 +96,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         }
     };
 
-    const [isSendingTest, setIsSendingTest] = React.useState(false);
+    const [isSendingTest, setIsSendingTest] = useState(false);
 
     const handleTestMessage = async () => {
         const phone = form.getValues('phone');
@@ -145,12 +172,28 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                         </Button>
                                     </div>
                                     <FormDescription>
-                                        Used for reminders. Must include country code.
+                                        Used for reminders. Must include country code (e.g., +15551234567).
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
+
+                        {/* Twilio Sandbox Instructions */}
+                        <div className="p-3 bg-muted rounded-lg text-sm space-y-2">
+                            <p className="font-medium">📱 WhatsApp Setup (Twilio Sandbox)</p>
+                            <p className="text-muted-foreground">
+                                To receive test messages, you must first connect your WhatsApp:
+                            </p>
+                            <ol className="list-decimal list-inside text-muted-foreground space-y-1">
+                                <li>Open WhatsApp on your phone</li>
+                                <li>Send <code className="bg-background px-1 rounded">join &lt;sandbox-code&gt;</code> to <strong>+1 (415) 523-8886</strong></li>
+                                <li>Wait for confirmation, then click Test above</li>
+                            </ol>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                Check your Twilio Console for your specific sandbox code.
+                            </p>
+                        </div>
 
                         <FormField
                             control={form.control}
@@ -166,7 +209,22 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             )}
                         />
 
-                        <DialogFooter>
+                        <DialogFooter className="flex justify-between sm:justify-between w-full">
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={async () => {
+                                    try {
+                                        await signOut(auth);
+                                        onClose();
+                                        router.push('/login');
+                                    } catch (error) {
+                                        console.error('Error signing out:', error);
+                                    }
+                                }}
+                            >
+                                Sign Out
+                            </Button>
                             <Button type="submit">Save Settings</Button>
                         </DialogFooter>
                     </form>

@@ -37,6 +37,18 @@ export interface HebrewDateInfo {
   isLeapYear?: boolean;
 }
 
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening';
+
+export interface ReminderSetting {
+  daysBefore: number; // 0 = day of, 1 = day before, 3, 7, 14, 30
+  timeOfDay: TimeOfDay;
+}
+
+export interface ReminderConfig {
+  reminders: ReminderSetting[];
+  isEnabled: boolean;
+}
+
 export interface FamilyEvent {
   id: string;
   userId: string;
@@ -53,6 +65,9 @@ export interface FamilyEvent {
 
   isRecurring: boolean;
   notes?: string;
+
+  // Notification configuration
+  reminderConfig?: ReminderConfig;
 
   createdAt: Timestamp;
   updatedAt: Timestamp;
