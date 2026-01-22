@@ -37,6 +37,7 @@ import { Label } from '@/components/ui/label';
 import { toHebrewDate } from '@/lib/hebrew-calendar';
 import { FamilyEvent, TimeOfDay } from '@/lib/types';
 import { Bell, Clock, X, Plus } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Constants
 const EVENT_TYPES = ['birthday', 'anniversary', 'yahrzeit', 'holiday', 'custom'];
@@ -154,248 +155,251 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
-                        <FormField
-                            control={form.control}
-                            name="title"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Event Title</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="e.g. Mom's Birthday" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="type"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Event Type</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {EVENT_TYPES.map(type => (
-                                                <SelectItem key={type} value={type} className="capitalize">
-                                                    {type}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="useHebrewDate"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                    <div className="space-y-0.5">
-                                        <FormLabel>Use Hebrew Date</FormLabel>
-                                        <FormDescription>
-                                            Event repeats on the Hebrew calendar
-                                        </FormDescription>
-                                    </div>
-                                    <FormControl>
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-
-                        {!useHebrew ? (
+                        <ScrollArea className="h-[60vh] pr-4">
                             <FormField
                                 control={form.control}
-                                name="gregorianDate"
+                                name="title"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Date</FormLabel>
+                                        <FormLabel>Event Title</FormLabel>
                                         <FormControl>
-                                            <Input type="date" {...field} />
+                                            <Input placeholder="e.g. Mom's Birthday" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                        ) : (
-                            <div className="grid grid-cols-2 gap-4">
+
+                            <FormField
+                                control={form.control}
+                                name="type"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Event Type</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select type" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {EVENT_TYPES.map(type => (
+                                                    <SelectItem key={type} value={type} className="capitalize">
+                                                        {type}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="useHebrewDate"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Use Hebrew Date</FormLabel>
+                                            <FormDescription>
+                                                Event repeats on the Hebrew calendar
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+
+                            {!useHebrew ? (
                                 <FormField
                                     control={form.control}
-                                    name="hebrewDay"
+                                    name="gregorianDate"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Day</FormLabel>
+                                            <FormLabel>Date</FormLabel>
                                             <FormControl>
-                                                <Input type="number" min={1} max={30} {...field} />
+                                                <Input type="date" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
-                                <FormField
-                                    control={form.control}
-                                    name="hebrewMonth"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Month</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="hebrewDay"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Day</FormLabel>
                                                 <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select month" />
-                                                    </SelectTrigger>
+                                                    <Input type="number" min={1} max={30} {...field} />
                                                 </FormControl>
-                                                <SelectContent>
-                                                    {HEBREW_MONTHS.map(month => (
-                                                        <SelectItem key={month} value={month}>
-                                                            {month}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                        )}
-
-                        <FormField
-                            control={form.control}
-                            name="isRecurring"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                    <div className="space-y-0.5">
-                                        <FormLabel>Annual Repeat</FormLabel>
-                                        <FormDescription>
-                                            Remind me every year
-                                        </FormDescription>
-                                    </div>
-                                    <FormControl>
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-
-                        {/* Notification Configuration Section */}
-                        <div className="space-y-3 rounded-lg border p-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Bell className="h-4 w-4 text-muted-foreground" />
-                                    <span className="font-medium">Notifications</span>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="hebrewMonth"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Month</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select month" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {HEBREW_MONTHS.map(month => (
+                                                            <SelectItem key={month} value={month}>
+                                                                {month}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                 </div>
-                                <FormField
-                                    control={form.control}
-                                    name="enableReminders"
-                                    render={({ field }) => (
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    )}
-                                />
-                            </div>
+                            )}
 
-                            {form.watch('enableReminders') && (
-                                <div className="space-y-3 pt-2">
-                                    {form.watch('reminders').map((_, index) => (
-                                        <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                                            <div className="flex-1 grid grid-cols-2 gap-2">
-                                                <Select
-                                                    value={String(form.watch(`reminders.${index}.daysBefore`))}
-                                                    onValueChange={(val) => {
-                                                        const reminders = form.getValues('reminders');
-                                                        reminders[index].daysBefore = parseInt(val);
-                                                        form.setValue('reminders', [...reminders]);
-                                                    }}
-                                                >
-                                                    <SelectTrigger className="h-8 text-sm">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {REMINDER_OPTIONS.map(opt => (
-                                                            <SelectItem key={opt.value} value={String(opt.value)}>
-                                                                {opt.label}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-
-                                                <Select
-                                                    value={form.watch(`reminders.${index}.timeOfDay`)}
-                                                    onValueChange={(val: TimeOfDay) => {
-                                                        const reminders = form.getValues('reminders');
-                                                        reminders[index].timeOfDay = val;
-                                                        form.setValue('reminders', [...reminders]);
-                                                    }}
-                                                >
-                                                    <SelectTrigger className="h-8 text-sm">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {TIME_OPTIONS.map(opt => (
-                                                            <SelectItem key={opt.value} value={opt.value}>
-                                                                <div className="flex items-center gap-1">
-                                                                    <Clock className="h-3 w-3" />
-                                                                    {opt.label} ({opt.time})
-                                                                </div>
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            {form.watch('reminders').length > 1 && (
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                    onClick={() => {
-                                                        const reminders = form.getValues('reminders');
-                                                        reminders.splice(index, 1);
-                                                        form.setValue('reminders', [...reminders]);
-                                                    }}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            )}
+                            <FormField
+                                control={form.control}
+                                name="isRecurring"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Annual Repeat</FormLabel>
+                                            <FormDescription>
+                                                Remind me every year
+                                            </FormDescription>
                                         </div>
-                                    ))}
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
 
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full"
-                                        onClick={() => {
-                                            const reminders = form.getValues('reminders');
-                                            form.setValue('reminders', [
-                                                ...reminders,
-                                                { daysBefore: 0, timeOfDay: 'morning' }
-                                            ]);
-                                        }}
-                                    >
-                                        <Plus className="h-4 w-4 mr-1" />
-                                        Add Another Reminder
-                                    </Button>
+                            {/* Notification Configuration Section */}
+                            <div className="space-y-3 rounded-lg border p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Bell className="h-4 w-4 text-muted-foreground" />
+                                        <span className="font-medium">Notifications</span>
+                                    </div>
+                                    <FormField
+                                        control={form.control}
+                                        name="enableReminders"
+                                        render={({ field }) => (
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        )}
+                                    />
                                 </div>
-                            )}
-                        </div>
+
+                                {form.watch('enableReminders') && (
+                                    <div className="space-y-3 pt-2">
+                                        {form.watch('reminders').map((_, index) => (
+                                            <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                                                <div className="flex-1 grid grid-cols-2 gap-2">
+                                                    <Select
+                                                        value={String(form.watch(`reminders.${index}.daysBefore`))}
+                                                        onValueChange={(val) => {
+                                                            const reminders = form.getValues('reminders');
+                                                            reminders[index].daysBefore = parseInt(val);
+                                                            form.setValue('reminders', [...reminders]);
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="h-8 text-sm">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {REMINDER_OPTIONS.map(opt => (
+                                                                <SelectItem key={opt.value} value={String(opt.value)}>
+                                                                    {opt.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+
+                                                    <Select
+                                                        value={form.watch(`reminders.${index}.timeOfDay`)}
+                                                        onValueChange={(val: TimeOfDay) => {
+                                                            const reminders = form.getValues('reminders');
+                                                            reminders[index].timeOfDay = val;
+                                                            form.setValue('reminders', [...reminders]);
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="h-8 text-sm">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {TIME_OPTIONS.map(opt => (
+                                                                <SelectItem key={opt.value} value={opt.value}>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Clock className="h-3 w-3" />
+                                                                        {opt.label} ({opt.time})
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                {form.watch('reminders').length > 1 && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        onClick={() => {
+                                                            const reminders = form.getValues('reminders');
+                                                            reminders.splice(index, 1);
+                                                            form.setValue('reminders', [...reminders]);
+                                                        }}
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        ))}
+
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                            onClick={() => {
+                                                const reminders = form.getValues('reminders');
+                                                form.setValue('reminders', [
+                                                    ...reminders,
+                                                    { daysBefore: 0, timeOfDay: 'morning' }
+                                                ]);
+                                            }}
+                                        >
+                                            <Plus className="h-4 w-4 mr-1" />
+                                            Add Another Reminder
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+                        <div className="pt-4"></div>
 
 
                         <DialogFooter>

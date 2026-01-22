@@ -6,7 +6,8 @@ import { EventModal } from '@/components/EventModal';
 import { FamilyEvent } from '@/lib/types';
 import { Timestamp, collection, doc, setDoc, deleteDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { SettingsModal } from '@/components/SettingsModal';
-import { Settings, Trash2, Calendar, Bell } from 'lucide-react';
+import { ManageEventsModal } from '@/components/ManageEventsModal';
+import { Settings, Trash2, Calendar, Bell, List } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser } from '@/firebase/provider';
@@ -17,6 +18,7 @@ export default function DashboardPage() {
     const [events, setEvents] = useState<FamilyEvent[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isManageOpen, setIsManageOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [isLoading, setIsLoading] = useState(true);
 
@@ -186,9 +188,15 @@ export default function DashboardPage() {
         <div className="container mx-auto p-6 h-screen flex flex-col">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">Family Days Reminder</h1>
-                <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(true)}>
-                    <Settings className="h-5 w-5" />
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setIsManageOpen(true)}>
+                        <List className="h-4 w-4 mr-2" />
+                        Manage All
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(true)}>
+                        <Settings className="h-5 w-5" />
+                    </Button>
+                </div>
             </div>
 
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-140px)]">
@@ -265,6 +273,13 @@ export default function DashboardPage() {
             <SettingsModal
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
+            />
+
+            <ManageEventsModal
+                isOpen={isManageOpen}
+                onClose={() => setIsManageOpen(false)}
+                events={events}
+                onDeleteEvent={handleDeleteEvent}
             />
         </div>
     );
