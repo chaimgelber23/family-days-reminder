@@ -109,7 +109,7 @@ export function EventCalendar({ events, onAddEvent, onViewEvent }: EventCalendar
                         if (e.isRecurring) {
                             // For recurring events, match month and day (ignore year)
                             return eventDate.getMonth() === day.getMonth() &&
-                                   eventDate.getDate() === day.getDate();
+                                eventDate.getDate() === day.getDate();
                         }
                         // For non-recurring events, exact date match
                         return isSameDay(eventDate, day);
@@ -146,9 +146,13 @@ export function EventCalendar({ events, onAddEvent, onViewEvent }: EventCalendar
                                 {dayEvents.map(event => (
                                     <div
                                         key={event.id}
-                                        onClick={(e) => { e.stopPropagation(); onViewEvent(event); }}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onViewEvent(event);
+                                        }}
                                         className={cn(
-                                            "text-xs px-2 py-1 rounded truncate cursor-pointer",
+                                            "text-xs px-2 py-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity",
                                             event.type === 'birthday' && "bg-pink-100 text-pink-700 border-pink-200 border",
                                             event.type === 'anniversary' && "bg-blue-100 text-blue-700 border-blue-200 border",
                                             event.type === 'holiday' && "bg-purple-100 text-purple-700 border-purple-200 border",
