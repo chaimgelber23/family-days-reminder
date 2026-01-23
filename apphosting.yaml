@@ -9,5 +9,11 @@ env:
     secret: TWILIO_ACCOUNT_SID
   - variable: TWILIO_AUTH_TOKEN
     secret: TWILIO_AUTH_TOKEN
+  - variable: TWILIO_PHONE_NUMBER
+    secret: TWILIO_PHONE_NUMBER
+  - variable: RESEND_API_KEY
+    secret: RESEND_API_KEY
+  - variable: FROM_EMAIL
+    value: "Family Days Reminder <onboarding@resend.dev>"
   - variable: NODE_ENV
     value: production
