@@ -2,24 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import { EventCalendar } from '@/components/EventCalendar';
-import { EventModal } from '@/components/EventModal';
+import { EventModal, EventFormData } from '@/components/EventModal';
 import { FamilyEvent } from '@/lib/types';
 import { Timestamp, collection, doc, setDoc, deleteDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { SettingsModal } from '@/components/SettingsModal';
-import { ManageEventsModal } from '@/components/ManageEventsModal';
-import { Settings, Trash2, Calendar, Bell, List } from 'lucide-react';
+import { EventsPanel } from '@/components/EventsPanel';
+import { Settings, Trash2, Calendar, Bell, PanelRightOpen, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser } from '@/firebase/provider';
 import { toHebrewDate } from '@/lib/hebrew-calendar';
-import { format, differenceInDays, isBefore, startOfDay } from 'date-fns';
+import { format, differenceInDays, isBefore, startOfDay, parseISO } from 'date-fns';
 
 export default function DashboardPage() {
     const [events, setEvents] = useState<FamilyEvent[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isManageOpen, setIsManageOpen] = useState(false);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [eventToEdit, setEventToEdit] = useState<FamilyEvent | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const firestore = useFirestore();
@@ -29,8 +30,6 @@ export default function DashboardPage() {
     // Redirect to login if not authenticated
     useEffect(() => {
         if (!isUserLoading && !user) {
-            // Check if we are already on the login page to avoid loops (though router handles this usually)
-            // Wrap in setTimeout to avoid updating state/navigation during render phase if that's happening
             const t = setTimeout(() => {
                 router.push('/login');
             }, 100);
@@ -42,14 +41,12 @@ export default function DashboardPage() {
     useEffect(() => {
         if (isUserLoading || !user) {
             if (!isUserLoading && !user) {
-                // Already handled by redirect effect above, but to be safe for local state
                 setEvents([]);
                 setIsLoading(false);
             }
             return;
         }
 
-        // Real-time listener for user's events
         const eventsRef = collection(firestore, 'events');
         const q = query(eventsRef, where('userId', '==', user.uid));
 
@@ -69,22 +66,61 @@ export default function DashboardPage() {
     }, [firestore, user, isUserLoading]);
 
     const handleAddEvent = (date: Date) => {
+        setEventToEdit(null);
         setSelectedDate(date);
         setIsModalOpen(true);
     };
 
-    const handleSaveEvent = async (data: any) => {
+    const handleEditEvent = (event: FamilyEvent) => {
+        setEventToEdit(event);
+        setSelectedDate(event.gregorianDate.toDate());
+        setIsModalOpen(true);
+        setIsPanelOpen(false); // Close the panel when editing
+    };
+
+    // Helper to parse date string without timezone issues
+    const parseDateString = (dateStr: string): Date => {
+        // Parse YYYY-MM-DD and create date in local timezone
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day, 12, 0, 0); // noon to avoid DST issues
+    };
+
+    // Check for duplicate events
+    const checkDuplicate = (title: string, gregorianDate: Date, excludeEventId?: string): FamilyEvent | null => {
+        const dateStr = format(gregorianDate, 'yyyy-MM-dd');
+        return events.find(e => {
+            if (excludeEventId && e.id === excludeEventId) return false;
+            const eventDateStr = format(e.gregorianDate.toDate(), 'yyyy-MM-dd');
+            return e.title.toLowerCase() === title.toLowerCase() && eventDateStr === dateStr;
+        }) || null;
+    };
+
+    const handleSaveEvent = async (data: EventFormData, existingEventId?: string) => {
         if (!user) {
             alert('Please sign in to save events');
             return;
         }
 
-        const eventId = crypto.randomUUID();
-        const gregorianDate = new Date(data.gregorianDate);
+        // Parse the date correctly to avoid timezone issues
+        const gregorianDate = parseDateString(data.gregorianDate);
         const hebrewDate = toHebrewDate(gregorianDate);
 
-        // Build the event object
-        const newEvent: FamilyEvent = {
+        // Check for duplicates (only for new events, not edits)
+        if (!existingEventId) {
+            const duplicate = checkDuplicate(data.title, gregorianDate);
+            if (duplicate) {
+                const confirmed = confirm(
+                    `An event "${duplicate.title}" already exists on this date. Do you want to add a duplicate?`
+                );
+                if (!confirmed) {
+                    throw new Error('User cancelled duplicate');
+                }
+            }
+        }
+
+        const eventId = existingEventId || crypto.randomUUID();
+
+        const eventData: FamilyEvent = {
             id: eventId,
             userId: user.uid,
             title: data.title,
@@ -93,7 +129,7 @@ export default function DashboardPage() {
             useHebrewDate: data.useHebrewDate,
             isRecurring: data.isRecurring,
             originalYear: gregorianDate.getFullYear(),
-            createdAt: Timestamp.now(),
+            createdAt: existingEventId ? (eventToEdit?.createdAt || Timestamp.now()) : Timestamp.now(),
             updatedAt: Timestamp.now(),
             reminderConfig: data.enableReminders ? {
                 isEnabled: true,
@@ -106,22 +142,23 @@ export default function DashboardPage() {
 
         // Add Hebrew date info if using Hebrew calendar
         if (data.useHebrewDate) {
-            newEvent.hebrewDate = {
+            eventData.hebrewDate = {
                 day: data.hebrewDay || hebrewDate.day,
                 month: hebrewDate.month,
                 year: data.hebrewYear || hebrewDate.year,
                 monthName: data.hebrewMonth || hebrewDate.monthName,
             };
-            newEvent.originalHebrewYear = data.hebrewYear || hebrewDate.year;
+            eventData.originalHebrewYear = data.hebrewYear || hebrewDate.year;
         }
 
         try {
-            // Save to Firestore
-            await setDoc(doc(firestore, 'events', eventId), newEvent);
+            await setDoc(doc(firestore, 'events', eventId), eventData);
             setIsModalOpen(false);
+            setEventToEdit(null);
         } catch (error) {
             console.error('Error saving event:', error);
             alert('Failed to save event. Please try again.');
+            throw error;
         }
     };
 
@@ -136,7 +173,7 @@ export default function DashboardPage() {
         }
     };
 
-    // Calculate upcoming events (next 30 days)
+    // Calculate upcoming events (next 60 days)
     const getUpcomingEvents = () => {
         const today = startOfDay(new Date());
         const upcoming: { event: FamilyEvent; nextDate: Date; daysUntil: number }[] = [];
@@ -146,10 +183,8 @@ export default function DashboardPage() {
             let nextOccurrence: Date;
 
             if (event.isRecurring) {
-                // For recurring events, find the next occurrence this year or next
                 const thisYearDate = new Date(today.getFullYear(), eventDate.getMonth(), eventDate.getDate());
                 if (isBefore(thisYearDate, today)) {
-                    // Already passed this year, use next year
                     nextOccurrence = new Date(today.getFullYear() + 1, eventDate.getMonth(), eventDate.getDate());
                 } else {
                     nextOccurrence = thisYearDate;
@@ -160,13 +195,11 @@ export default function DashboardPage() {
 
             const daysUntil = differenceInDays(nextOccurrence, today);
 
-            // Show events in next 60 days
             if (daysUntil >= 0 && daysUntil <= 60) {
                 upcoming.push({ event, nextDate: nextOccurrence, daysUntil });
             }
         });
 
-        // Sort by date
         return upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
     };
 
@@ -181,7 +214,7 @@ export default function DashboardPage() {
     }
 
     if (!user) {
-        return null; // Will redirect via the useEffect above
+        return null;
     }
 
     return (
@@ -189,9 +222,9 @@ export default function DashboardPage() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">Family Days Reminder</h1>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setIsManageOpen(true)}>
-                        <List className="h-4 w-4 mr-2" />
-                        Manage All
+                    <Button variant="outline" onClick={() => setIsPanelOpen(true)}>
+                        <PanelRightOpen className="h-4 w-4 mr-2" />
+                        All Events
                     </Button>
                     <Button variant="outline" size="icon" onClick={() => setIsSettingsOpen(true)}>
                         <Settings className="h-5 w-5" />
@@ -205,7 +238,7 @@ export default function DashboardPage() {
                     <EventCalendar
                         events={events}
                         onAddEvent={handleAddEvent}
-                        onViewEvent={(event) => console.log('View event', event)}
+                        onViewEvent={handleEditEvent}
                     />
                 </div>
 
@@ -247,14 +280,24 @@ export default function DashboardPage() {
                                                 </p>
                                             )}
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                            onClick={() => handleDeleteEvent(event.id)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        <div className="flex flex-col gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                onClick={() => handleEditEvent(event)}
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                onClick={() => handleDeleteEvent(event.id)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -265,9 +308,13 @@ export default function DashboardPage() {
 
             <EventModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setEventToEdit(null);
+                }}
                 onSave={handleSaveEvent}
                 initialDate={selectedDate}
+                eventToEdit={eventToEdit}
             />
 
             <SettingsModal
@@ -275,11 +322,12 @@ export default function DashboardPage() {
                 onClose={() => setIsSettingsOpen(false)}
             />
 
-            <ManageEventsModal
-                isOpen={isManageOpen}
-                onClose={() => setIsManageOpen(false)}
+            <EventsPanel
+                isOpen={isPanelOpen}
+                onClose={() => setIsPanelOpen(false)}
                 events={events}
                 onDeleteEvent={handleDeleteEvent}
+                onEditEvent={handleEditEvent}
             />
         </div>
     );

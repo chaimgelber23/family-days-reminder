@@ -32,11 +32,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { toHebrewDate } from '@/lib/hebrew-calendar';
 import { FamilyEvent, TimeOfDay } from '@/lib/types';
-import { Bell, Clock, X, Plus } from 'lucide-react';
+import { Bell, Clock, X, Plus, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Constants
@@ -82,15 +80,19 @@ const formSchema = z.object({
     reminders: z.array(reminderSettingSchema).default([{ daysBefore: 1, timeOfDay: 'morning' }]),
 });
 
+export type EventFormData = z.infer<typeof formSchema>;
+
 interface EventModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: any) => Promise<void>;
+    onSave: (data: EventFormData, eventId?: string) => Promise<void>;
     initialDate?: Date;
-    eventToEdit?: FamilyEvent;
+    eventToEdit?: FamilyEvent | null;
 }
 
 export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }: EventModalProps) {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -107,11 +109,25 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
         },
     });
 
-    // Reset form when modal opens or initialDate changes
+    // Reset form when modal opens or initialDate/eventToEdit changes
     useEffect(() => {
         if (isOpen) {
             if (eventToEdit) {
-                // TODO: Populate for edit mode
+                // Populate for edit mode
+                const eventDate = eventToEdit.gregorianDate.toDate();
+                const hd = eventToEdit.hebrewDate || toHebrewDate(eventDate);
+                form.reset({
+                    title: eventToEdit.title,
+                    type: eventToEdit.type,
+                    useHebrewDate: eventToEdit.useHebrewDate,
+                    gregorianDate: format(eventDate, 'yyyy-MM-dd'),
+                    isRecurring: eventToEdit.isRecurring,
+                    hebrewDay: hd.day,
+                    hebrewMonth: hd.monthName,
+                    hebrewYear: hd.year,
+                    enableReminders: eventToEdit.reminderConfig?.isEnabled ?? true,
+                    reminders: eventToEdit.reminderConfig?.reminders ?? [{ daysBefore: 1, timeOfDay: 'morning' }],
+                });
             } else if (initialDate) {
                 const hd = toHebrewDate(initialDate);
                 form.reset({
@@ -133,22 +149,37 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
     const useHebrew = form.watch('useHebrewDate');
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
+        if (isSubmitting) return; // Prevent double-submission
+
+        setIsSubmitting(true);
         try {
-            await onSave(values);
-            onClose();
+            await onSave(values, eventToEdit?.id);
             form.reset();
+            onClose();
         } catch (error) {
             console.error('Failed to save event:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleClose = () => {
+        if (!isSubmitting) {
+            form.reset();
+            onClose();
         }
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>{eventToEdit ? 'Edit Event' : 'Add New Event'}</DialogTitle>
                     <DialogDescription>
-                        Add a birthday, anniversary, or special day to your calendar.
+                        {eventToEdit
+                            ? 'Update the details of your event.'
+                            : 'Add a birthday, anniversary, or special day to your calendar.'
+                        }
                     </DialogDescription>
                 </DialogHeader>
 
@@ -176,7 +207,7 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Event Type</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select type" />
@@ -251,7 +282,7 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Month</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <Select onValueChange={field.onChange} value={field.value}>
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Select month" />
@@ -403,10 +434,13 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
 
 
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={onClose}>
+                            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                                 Cancel
                             </Button>
-                            <Button type="submit">Save Event</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {eventToEdit ? 'Update Event' : 'Save Event'}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>
