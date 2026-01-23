@@ -228,7 +228,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                                     onClick={() => handleTestMessage('email')}
                                                     disabled={isSendingTest}
                                                 >
-                                                    Test
+                                                    {isSendingTest ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Test'}
                                                 </Button>
                                             )}
                                         </FormItem>
