@@ -2,16 +2,19 @@ import type { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'admin' | 'user';
 
+export type NotificationMethod = 'sms' | 'whatsapp' | 'email';
+
 export interface AppUser {
   id: string;
   email: string;
   name?: string;
   photoURL?: string;
+  phone?: string; // For SMS/WhatsApp
   role: UserRole;
   createdAt: Timestamp;
   preferences?: {
     defaultReminderTime?: string; // "09:00"
-    reminderMethod?: 'sms' | 'whatsapp' | 'email';
+    notificationMethods?: NotificationMethod[]; // e.g. ['email', 'whatsapp']
     calendarType?: 'gregorian' | 'hebrew' | 'both';
   };
 }
