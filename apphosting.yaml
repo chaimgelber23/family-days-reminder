@@ -1,8 +1,8 @@
 runConfig:
   minInstances: 0
   runtime: nodejs20
-  cpu: 1
-  memoryMiB: 512
+  cpu: 2
+  memoryMiB: 1024
 
 env:
   - variable: TWILIO_ACCOUNT_SID
