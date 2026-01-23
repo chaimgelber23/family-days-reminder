@@ -174,8 +174,8 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-[425px] flex flex-col max-h-[90vh]">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-[425px] max-h-[85vh] flex flex-col p-0 gap-0">
+                <DialogHeader className="p-6 pb-2">
                     <DialogTitle>{eventToEdit ? 'Edit Event' : 'Add New Event'}</DialogTitle>
                     <DialogDescription>
                         {eventToEdit
@@ -185,11 +185,11 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-hidden px-6">
                     <Form {...form}>
-                        <form id="event-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 h-full flex flex-col">
-                            <ScrollArea className="flex-1 pr-4">
-                                <div className="space-y-4 p-1">
+                        <form id="event-form" onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col">
+                            <ScrollArea className="flex-1 -mx-6 px-6">
+                                <div className="space-y-4 py-4 px-1">
                                     <FormField
                                         control={form.control}
                                         name="title"
@@ -436,7 +436,7 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
                     </Form>
                 </div>
 
-                <DialogFooter className="pt-2 border-t mt-auto">
+                <DialogFooter className="p-6 pt-2 border-t mt-auto bg-background z-20">
                     <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                         Cancel
                     </Button>
