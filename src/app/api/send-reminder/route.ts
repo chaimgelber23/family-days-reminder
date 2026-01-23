@@ -1,20 +1,26 @@
 import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 
-// Initialize Twilio client
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
-const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER; // For SMS
+// Lazy initialization to avoid build-time errors
+let twilioClient: ReturnType<typeof twilio> | null = null;
 
-// Resend for email (optional - get free API key from resend.com)
-const resendApiKey = process.env.RESEND_API_KEY;
-const fromEmail = process.env.FROM_EMAIL || 'reminders@familydaysreminder.com';
-
-const client = twilio(accountSid, authToken);
+function getTwilioClient() {
+    if (!twilioClient) {
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        if (!accountSid || !authToken) {
+            throw new Error('Twilio credentials not configured');
+        }
+        twilioClient = twilio(accountSid, authToken);
+    }
+    return twilioClient;
+}
 
 // Send via WhatsApp
 async function sendWhatsApp(to: string, message: string) {
+    const client = getTwilioClient();
+    const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+
     const messageOptions: any = {
         to: `whatsapp:${to}`,
         body: message,
@@ -31,6 +37,10 @@ async function sendWhatsApp(to: string, message: string) {
 
 // Send via SMS
 async function sendSMS(to: string, message: string) {
+    const client = getTwilioClient();
+    const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+    const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
     const messageOptions: any = {
         to: to,
         body: message,
@@ -49,6 +59,9 @@ async function sendSMS(to: string, message: string) {
 
 // Send via Email using Resend
 async function sendEmail(to: string, message: string, subject?: string) {
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.FROM_EMAIL || 'Family Days Reminder <onboarding@resend.dev>';
+
     if (!resendApiKey) {
         throw new Error('Email not configured. Set RESEND_API_KEY in environment.');
     }
@@ -103,22 +116,10 @@ export async function POST(request: Request) {
                 result = await sendEmail(to, message, subject);
                 break;
             case 'sms':
-                if (!accountSid || !authToken) {
-                    return NextResponse.json(
-                        { error: 'Twilio credentials not configured' },
-                        { status: 500 }
-                    );
-                }
                 result = await sendSMS(to, message);
                 break;
             case 'whatsapp':
             default:
-                if (!accountSid || !authToken) {
-                    return NextResponse.json(
-                        { error: 'Twilio credentials not configured' },
-                        { status: 500 }
-                    );
-                }
                 result = await sendWhatsApp(to, message);
                 break;
         }
@@ -130,7 +131,7 @@ export async function POST(request: Request) {
         });
 
     } catch (error: any) {
-        console.error(`Send ${request.body} Error:`, error);
+        console.error(`Send reminder error:`, error);
         return NextResponse.json(
             { error: error.message || 'Failed to send message' },
             { status: 500 }
