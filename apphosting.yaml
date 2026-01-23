@@ -1,8 +1,13 @@
 runConfig:
   minInstances: 0
+  runtime: nodejs20
+  cpu: 1
+  memoryMiB: 512
 
 env:
   - variable: TWILIO_ACCOUNT_SID
     secret: TWILIO_ACCOUNT_SID
   - variable: TWILIO_AUTH_TOKEN
     secret: TWILIO_AUTH_TOKEN
+  - variable: NODE_ENV
+    value: production
