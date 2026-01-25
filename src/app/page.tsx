@@ -7,6 +7,7 @@ import { FamilyEvent } from '@/lib/types';
 import { Timestamp, collection, doc, setDoc, deleteDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { SettingsModal } from '@/components/SettingsModal';
 import { Settings, Trash2, Calendar, Bell, Pencil } from 'lucide-react';
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser } from '@/firebase/provider';
@@ -229,11 +230,7 @@ export default function DashboardPage() {
     }, [events, calendarFilter, typeFilter]);
 
     if (isUserLoading || isLoading) {
-        return (
-            <div className="container mx-auto p-6 h-screen flex items-center justify-center">
-                <div className="text-muted-foreground">Loading...</div>
-            </div>
-        );
+        return <DashboardSkeleton />;
     }
 
     if (!user) {
