@@ -172,8 +172,7 @@ export default function DashboardPage() {
             console.log('Saving event to Firestore:', eventId, eventData);
             await setDoc(doc(firestore, 'events', eventId), eventData);
             console.log('Event saved successfully');
-            setIsModalOpen(false);
-            setEventToEdit(null);
+            // Don't close modal here - let EventModal handle it via onClose callback
         } catch (error) {
             console.error('Error saving event:', error);
             alert('Failed to save event: ' + (error instanceof Error ? error.message : String(error)));
