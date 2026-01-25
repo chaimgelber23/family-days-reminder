@@ -170,18 +170,7 @@ export default function DashboardPage() {
 
         try {
             console.log('Saving event to Firestore:', eventId, eventData);
-
-            // Create a timeout promise that rejects after 10 seconds
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Operation timed out. Please check your internet connection.')), 10000);
-            });
-
-            // Race the setDoc operation against the timeout
-            await Promise.race([
-                setDoc(doc(firestore, 'events', eventId), eventData),
-                timeoutPromise
-            ]);
-
+            await setDoc(doc(firestore, 'events', eventId), eventData);
             console.log('Event saved successfully');
             // Don't close modal here - let EventModal handle it via onClose callback
         } catch (error) {
