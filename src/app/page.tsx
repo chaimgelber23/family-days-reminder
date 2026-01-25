@@ -10,7 +10,7 @@ import { Settings, Trash2, Calendar, Bell, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser } from '@/firebase/provider';
-import { toHebrewDate, formatHebrewDate, getHebrewMonthNumber } from '@/lib/hebrew-calendar';
+import { toHebrewDate, formatHebrewDate, getHebrewMonthNumber, toGregorianDate } from '@/lib/hebrew-calendar';
 import { format, differenceInDays, isBefore, startOfDay } from 'date-fns';
 
 type CalendarFilter = 'all' | 'english' | 'hebrew';
@@ -88,19 +88,25 @@ export default function DashboardPage() {
             return;
         }
 
-        // Parse date string (YYYY-MM-DD) as local noon to avoid timezone shifts
-        // when converting to Date object which defaults to midnight local
-        const [year, month, day] = data.gregorianDate.split('-').map(Number);
-        const gregorianDate = new Date(year, month - 1, day, 12, 0, 0);
+        let gregorianDate: Date;
+        let hebrewDate;
 
-        const hebrewDate = data.useHebrewDate ?
-            (data.hebrewDay && data.hebrewMonth && data.hebrewYear ? {
+        if (data.useHebrewDate && data.hebrewDay && data.hebrewMonth && data.hebrewYear) {
+            // When using Hebrew date, calculate gregorian from Hebrew
+            hebrewDate = {
                 day: data.hebrewDay,
                 monthName: data.hebrewMonth,
                 year: data.hebrewYear,
                 month: getHebrewMonthNumber(data.hebrewMonth)
-            } : toHebrewDate(gregorianDate))
-            : toHebrewDate(gregorianDate);
+            };
+            // Convert Hebrew date to Gregorian
+            gregorianDate = toGregorianDate(hebrewDate);
+        } else {
+            // Parse date string (YYYY-MM-DD) as local noon to avoid timezone shifts
+            const [year, month, day] = data.gregorianDate.split('-').map(Number);
+            gregorianDate = new Date(year, month - 1, day, 12, 0, 0);
+            hebrewDate = toHebrewDate(gregorianDate);
+        }
 
         if (!existingEventId) {
             // Check for duplicate on the SAME DAY (ignoring time)
@@ -148,20 +154,8 @@ export default function DashboardPage() {
         };
 
         if (data.useHebrewDate) {
-            // If explicit hebrew date provided
-            if (data.hebrewDay && data.hebrewMonth && data.hebrewYear) {
-                eventData.hebrewDate = {
-                    day: data.hebrewDay,
-                    monthName: data.hebrewMonth,
-                    year: data.hebrewYear,
-                    month: getHebrewMonthNumber(data.hebrewMonth)
-                };
-                eventData.originalHebrewYear = data.hebrewYear;
-            } else {
-                // Fallback to calculated
-                eventData.hebrewDate = hebrewDate;
-                eventData.originalHebrewYear = hebrewDate.year;
-            }
+            eventData.hebrewDate = hebrewDate;
+            eventData.originalHebrewYear = hebrewDate.year;
         }
 
         try {

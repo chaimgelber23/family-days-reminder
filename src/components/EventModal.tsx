@@ -159,9 +159,15 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
             onClose();
         } catch (error) {
             console.error('Failed to save event:', error);
+            alert('Failed to save event: ' + (error instanceof Error ? error.message : String(error)));
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    // Log validation errors
+    const onError = (errors: unknown) => {
+        console.error('Form validation errors:', errors);
     };
 
     const handleClose = () => {
@@ -185,7 +191,7 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
                 </DialogHeader>
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
                         <FormField
                             control={form.control}
                             name="title"
