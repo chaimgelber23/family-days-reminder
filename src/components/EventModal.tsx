@@ -171,10 +171,8 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
     };
 
     const handleClose = () => {
-        if (!isSubmitting) {
-            form.reset();
-            onClose();
-        }
+        form.reset();
+        onClose();
     };
 
     return (
@@ -434,7 +432,7 @@ export function EventModal({ isOpen, onClose, onSave, initialDate, eventToEdit }
                         </div>
 
                         <DialogFooter className="pt-4">
-                            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+                            <Button type="button" variant="outline" onClick={handleClose}>
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={isSubmitting}>
