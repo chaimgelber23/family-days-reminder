@@ -3,7 +3,7 @@
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 
 interface FirebaseProviderProps {
@@ -126,19 +126,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         setUserAuthState({ user: null, isUserLoading: false, userError: error });
       }
     );
-
-    // Also handle redirect results
-    getRedirectResult(auth).then((result) => {
-        if (result?.user) {
-            console.log("Handling redirect result for user:", result.user.uid);
-            // The onAuthStateChanged listener will fire and handle the doc creation.
-        }
-    }).catch((error) => {
-        if (error.code !== 'auth/no-redirect-result') {
-            console.error("FirebaseProvider: getRedirectResult error:", error);
-            setUserAuthState(prev => ({ ...prev, userError: error }));
-        }
-    });
 
     return () => unsubscribe();
   }, [auth, firestore]);
