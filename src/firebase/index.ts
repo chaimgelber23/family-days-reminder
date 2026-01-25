@@ -1,7 +1,7 @@
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache } from 'firebase/firestore';
 
 export function initializeFirebase() {
   if (!getApps().length) {
@@ -15,10 +15,21 @@ export function initializeFirebase() {
       firebaseApp = initializeApp(firebaseConfig);
     }
 
-    // Initialize Firestore
-    // Using default (memory) cache to avoid "Failed to obtain primary lease" errors
-    // which are causing writes to hang in some environments.
-    let firestore = getFirestore(firebaseApp);
+    // Initialize Firestore with explicit memory cache and long-polling
+    // This fixes issues where:
+    // 1. "Failed to obtain primary lease" (solved by memoryLocalCache)
+    // 2. Network hangs/timeouts due to WebSocket blocks (solved by experimentalForceLongPolling)
+    let firestore;
+    try {
+      firestore = initializeFirestore(firebaseApp, {
+        localCache: memoryLocalCache(),
+        experimentalForceLongPolling: true,
+      });
+    } catch (e) {
+      // Fallback or if already initialized
+      console.warn('Firestore initialization error or already initialized:', e);
+      firestore = getFirestore(firebaseApp);
+    }
 
     return {
       firebaseApp,
