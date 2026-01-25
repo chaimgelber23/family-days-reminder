@@ -1,7 +1,7 @@
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, memoryLocalCache } from 'firebase/firestore';
 
 export function initializeFirebase() {
   if (!getApps().length) {
@@ -16,13 +16,14 @@ export function initializeFirebase() {
     }
 
     // Initialize Firestore with memory cache (avoids "Failed to obtain primary lease" errors)
-    // We use WebSockets (default) instead of long-polling for better performance
+    // Use auto-detect for long polling - tries WebSockets first, falls back to long-polling if blocked
     let firestore;
     try {
       firestore = initializeFirestore(firebaseApp, {
         localCache: memoryLocalCache(),
+        experimentalAutoDetectLongPolling: true,
       });
-      console.log('✅ Firestore initialized with memory cache');
+      console.log('✅ Firestore initialized with memory cache and auto-detect long polling');
     } catch (e) {
       // Fallback or if already initialized
       console.warn('⚠️ Firestore initialization error or already initialized:', e);
