@@ -15,23 +15,10 @@ export function initializeFirebase() {
       firebaseApp = initializeApp(firebaseConfig);
     }
 
-    // Initialize Firestore with persistent cache (modern API)
-    let firestore;
-    if (typeof window !== 'undefined') {
-      try {
-        firestore = initializeFirestore(firebaseApp, {
-          localCache: persistentLocalCache({
-            tabManager: persistentMultipleTabManager()
-          })
-        });
-      } catch (err) {
-        // Fallback if persistence fails
-        console.warn('Firestore persistence initialization failed, using default:', err);
-        firestore = getFirestore(firebaseApp);
-      }
-    } else {
-      firestore = getFirestore(firebaseApp);
-    }
+    // Initialize Firestore
+    // Using default (memory) cache to avoid "Failed to obtain primary lease" errors
+    // which are causing writes to hang in some environments.
+    let firestore = getFirestore(firebaseApp);
 
     return {
       firebaseApp,
