@@ -2,7 +2,7 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Firestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 
@@ -53,32 +53,31 @@ export interface UserHookResult { // Renamed from UserAuthHookResult for consist
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 // This function ensures a user document exists in Firestore and updates their last login time.
-const ensureUserDocExists = async (firestore: Firestore, user: User) => {
+// Uses setDoc with merge to avoid needing a read operation first, which is more reliable
+// when the connection is still being established.
+const ensureUserDocExists = async (firestore: Firestore, user: User, retryCount = 0) => {
     if (!firestore) return;
     const userDocRef = doc(firestore, "users", user.uid);
     try {
-        const userDoc = await getDoc(userDocRef);
-        if (!userDoc.exists()) {
-          console.log(`Creating user document for new user: ${user.uid}`);
-          await setDoc(userDocRef, {
+        // Use setDoc with merge - this creates the doc if it doesn't exist
+        // or updates it if it does, without needing to read first
+        await setDoc(userDocRef, {
             id: user.uid,
             name: user.displayName,
             email: user.email,
             photoURL: user.photoURL,
-            role: 'user', // Default role for all new sign-ups
-            createdAt: serverTimestamp(),
+            role: 'user',
             lastLoginAt: serverTimestamp(),
-          });
-        } else {
-          // Existing user, just update their last login time
-          await setDoc(userDocRef, {
-             lastLoginAt: serverTimestamp()
-          }, { merge: true });
-        }
+        }, { merge: true });
     } catch (error) {
-        console.error("Error ensuring user document exists:", error);
-        // Re-throw the error to be caught by the caller if needed
-        throw error;
+        // Retry up to 3 times with increasing delay for connection issues
+        if (retryCount < 3) {
+            const delay = (retryCount + 1) * 2000; // 2s, 4s, 6s
+            console.log(`Retrying ensureUserDocExists in ${delay}ms (attempt ${retryCount + 2}/4)`);
+            setTimeout(() => ensureUserDocExists(firestore, user, retryCount + 1), delay);
+        } else {
+            console.error("Failed to ensure user document after retries:", error);
+        }
     }
 };
 

@@ -15,15 +15,16 @@ export function initializeFirebase() {
       firebaseApp = initializeApp(firebaseConfig);
     }
 
-    // Initialize Firestore with memory cache (avoids "Failed to obtain primary lease" errors)
-    // Use auto-detect for long polling - tries WebSockets first, falls back to long-polling if blocked
+    // Initialize Firestore with memory cache and forced long-polling
+    // Memory cache avoids "Failed to obtain primary lease" errors
+    // Long-polling is required because WebSockets are blocked in this environment
     let firestore;
     try {
       firestore = initializeFirestore(firebaseApp, {
         localCache: memoryLocalCache(),
-        experimentalAutoDetectLongPolling: true,
+        experimentalForceLongPolling: true,
       });
-      console.log('✅ Firestore initialized with memory cache and auto-detect long polling');
+      console.log('✅ Firestore initialized with memory cache and long polling');
     } catch (e) {
       // Fallback or if already initialized
       console.warn('⚠️ Firestore initialization error or already initialized:', e);
