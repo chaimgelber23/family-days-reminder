@@ -83,6 +83,8 @@ export default function DashboardPage() {
     };
 
     const handleSaveEvent = async (data: EventFormData, existingEventId?: string) => {
+        console.log('handleSaveEvent called', { data, existingEventId });
+
         if (!user) {
             alert('Please sign in to save events');
             return;
@@ -91,21 +93,29 @@ export default function DashboardPage() {
         let gregorianDate: Date;
         let hebrewDate;
 
-        if (data.useHebrewDate && data.hebrewDay && data.hebrewMonth && data.hebrewYear) {
-            // When using Hebrew date, calculate gregorian from Hebrew
-            hebrewDate = {
-                day: data.hebrewDay,
-                monthName: data.hebrewMonth,
-                year: data.hebrewYear,
-                month: getHebrewMonthNumber(data.hebrewMonth)
-            };
-            // Convert Hebrew date to Gregorian
-            gregorianDate = toGregorianDate(hebrewDate);
-        } else {
-            // Parse date string (YYYY-MM-DD) as local noon to avoid timezone shifts
-            const [year, month, day] = data.gregorianDate.split('-').map(Number);
-            gregorianDate = new Date(year, month - 1, day, 12, 0, 0);
-            hebrewDate = toHebrewDate(gregorianDate);
+        try {
+            if (data.useHebrewDate && data.hebrewDay && data.hebrewMonth && data.hebrewYear) {
+                // When using Hebrew date, calculate gregorian from Hebrew
+                hebrewDate = {
+                    day: data.hebrewDay,
+                    monthName: data.hebrewMonth,
+                    year: data.hebrewYear,
+                    month: getHebrewMonthNumber(data.hebrewMonth)
+                };
+                // Convert Hebrew date to Gregorian
+                console.log('Converting Hebrew to Gregorian:', hebrewDate);
+                gregorianDate = toGregorianDate(hebrewDate);
+                console.log('Gregorian result:', gregorianDate);
+            } else {
+                // Parse date string (YYYY-MM-DD) as local noon to avoid timezone shifts
+                const [year, month, day] = data.gregorianDate.split('-').map(Number);
+                gregorianDate = new Date(year, month - 1, day, 12, 0, 0);
+                hebrewDate = toHebrewDate(gregorianDate);
+            }
+        } catch (err) {
+            console.error('Error in date conversion:', err);
+            alert('Error converting date: ' + (err instanceof Error ? err.message : String(err)));
+            throw err;
         }
 
         if (!existingEventId) {
@@ -159,12 +169,15 @@ export default function DashboardPage() {
         }
 
         try {
+            console.log('Saving event to Firestore:', eventId, eventData);
             await setDoc(doc(firestore, 'events', eventId), eventData);
+            console.log('Event saved successfully');
             setIsModalOpen(false);
             setEventToEdit(null);
         } catch (error) {
             console.error('Error saving event:', error);
-            alert('Failed to save event. Please try again.');
+            alert('Failed to save event: ' + (error instanceof Error ? error.message : String(error)));
+            throw error; // Re-throw so EventModal can catch it too
         }
     };
 
