@@ -168,16 +168,16 @@ export default function DashboardPage() {
             eventData.originalHebrewYear = hebrewDate.year;
         }
 
-        try {
-            console.log('Saving event to Firestore:', eventId, eventData);
-            await setDoc(doc(firestore, 'events', eventId), eventData);
-            console.log('Event saved successfully');
-            // Don't close modal here - let EventModal handle it via onClose callback
-        } catch (error) {
-            console.error('Error saving event:', error);
-            alert('Failed to save event: ' + (error instanceof Error ? error.message : String(error)));
-            throw error; // Re-throw so EventModal can catch it too
-        }
+        // Start the save operation without waiting for server confirmation
+        // The onSnapshot listener will update the UI when the save completes
+        // This provides a better UX with long-polling connections
+        console.log('Saving event to Firestore:', eventId, eventData);
+        setDoc(doc(firestore, 'events', eventId), eventData)
+            .then(() => console.log('Event saved successfully'))
+            .catch((error) => {
+                console.error('Error saving event:', error);
+                alert('Failed to save event: ' + (error instanceof Error ? error.message : String(error)));
+            });
     };
 
     const handleDeleteEvent = async (eventId: string) => {
