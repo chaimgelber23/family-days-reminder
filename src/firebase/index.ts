@@ -25,10 +25,12 @@ export function initializeFirebase() {
         localCache: memoryLocalCache(),
         experimentalForceLongPolling: true,
       });
+      console.log('✅ Firestore initialized with memory cache and long polling');
     } catch (e) {
       // Fallback or if already initialized
-      console.warn('Firestore initialization error or already initialized:', e);
+      console.warn('⚠️ Firestore initialization error or already initialized:', e);
       firestore = getFirestore(firebaseApp);
+      console.log('⚠️ Using default Firestore instance');
     }
 
     return {
