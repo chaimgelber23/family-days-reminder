@@ -65,7 +65,7 @@ const ensureUserDocExists = async (firestore: Firestore, user: User) => {
             name: user.displayName,
             email: user.email,
             photoURL: user.photoURL,
-            role: 'station', // Default role for all new sign-ups
+            role: 'user', // Default role for all new sign-ups
             createdAt: serverTimestamp(),
             lastLoginAt: serverTimestamp(),
           });

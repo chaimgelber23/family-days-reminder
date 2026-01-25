@@ -1,13 +1,19 @@
-import { HDate, HebrewCalendar, Location, Event } from '@hebcal/core';
-import { HebrewDateInfo, FamilyEvent } from './types';
-import { Timestamp } from 'firebase/firestore';
+import { HDate, HebrewCalendar } from '@hebcal/core';
+import { HebrewDateInfo } from './types';
 
-// Mapping of month names to numbers (Hebcal uses 1=Nisan, 7=Tishrei)
-// But for UI we might want a simpler 1-12/13 system or just stick to Hebcal's
-const MONTH_NAMES = [
-    'Nisan', 'Iyyar', 'Sivan', 'Tamuz', 'Av', 'Elul',
-    'Tishrei', 'Cheshvan', 'Kislev', 'Tevet', 'Shevat', 'Adar', 'Adar I', 'Adar II'
-];
+// Hebcal month number mapping (1=Nisan, 7=Tishrei, etc.)
+const MONTH_NAME_TO_NUMBER: Record<string, number> = {
+    'Nisan': 1, 'Iyyar': 2, 'Sivan': 3, 'Tamuz': 4, 'Av': 5, 'Elul': 6,
+    'Tishrei': 7, 'Cheshvan': 8, 'Kislev': 9, 'Tevet': 10, 'Shevat': 11,
+    'Adar': 12, 'Adar I': 12, 'Adar II': 13
+};
+
+/**
+ * Converts a Hebrew month name to its Hebcal month number
+ */
+export function getHebrewMonthNumber(monthName: string): number {
+    return MONTH_NAME_TO_NUMBER[monthName] || 1;
+}
 
 /**
  * Converts a Javascript Date to Hebrew Date Info
@@ -51,7 +57,6 @@ export function getJewishHolidays(year: number): Array<{ title: string, date: Da
         il: false, // Diaspora by default, maybe make configurable
         sedrot: false,
         candlelighting: false,
-        havdalah: false,
         omer: false,
     });
 
@@ -76,8 +81,7 @@ export function getJewishHolidays(year: number): Array<{ title: string, date: Da
  */
 export function getNextHebrewOccurrence(
     day: number,
-    month: number, // Hebcal month enum
-    originalHebrewYear?: number
+    month: number // Hebcal month enum
 ): Date {
     const now = new HDate();
     const currentHebrewYear = now.getFullYear();
@@ -90,8 +94,10 @@ export function getNextHebrewOccurrence(
     // - Birthday usually celebrated in Adar II (some say I, generally II)
     // If born in Adar I/II calculate accordingly
 
-    // Check if date passed already
-    if (nextHd.before(now.prev())) { // Check if passed (allow today)
+    // Check if date passed already by comparing gregorian dates
+    const nextGreg = nextHd.greg();
+    const todayGreg = now.greg();
+    if (nextGreg < todayGreg) {
         nextHd = new HDate(day, month, currentHebrewYear + 1);
     }
 

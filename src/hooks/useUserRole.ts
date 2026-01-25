@@ -47,7 +47,7 @@ export function useUserRole() {
       isLoading: isAuthLoading || isRoleLoading,
       role: isAdmin ? 'admin' : userData?.role,
       isAdmin,
-      isStation: userData?.role === 'station',
+      isUser: userData?.role === 'user',
     }
   }, [user, userData, isAuthLoading, isRoleLoading]);
 

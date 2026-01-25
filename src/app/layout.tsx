@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'VMS Computer Check',
-  description: 'Manage your scan jobs with ease.',
+  title: 'Family Days Reminder',
+  description: 'Never miss important family birthdays, anniversaries, and special occasions.',
 };
 
 export default function RootLayout({

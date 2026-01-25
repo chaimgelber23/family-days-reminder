@@ -1,55 +1,155 @@
-// @ts-nocheck
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-const twilio = require('twilio');
 import { HDate } from '@hebcal/core';
+
+// Twilio types
+interface TwilioMessageInstance {
+    sid: string;
+    status: string;
+}
+
+interface TwilioMessagesCreate {
+    create(options: { from: string; to: string; body: string }): Promise<TwilioMessageInstance>;
+}
+
+interface TwilioClient {
+    messages: TwilioMessagesCreate;
+}
+
+type TwilioFactory = (accountSid: string, authToken: string) => TwilioClient;
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const twilio: TwilioFactory = require('twilio');
+
+// Event and User types for Cloud Functions
+interface HebrewDateInfo {
+    day: number;
+    month: number;
+    year: number;
+    monthName: string;
+}
+
+interface ReminderSetting {
+    daysBefore: number;
+    timeOfDay: 'morning' | 'afternoon' | 'evening';
+}
+
+interface ReminderConfig {
+    isEnabled: boolean;
+    reminders: ReminderSetting[];
+}
+
+interface FamilyEventData {
+    id: string;
+    userId: string;
+    title: string;
+    type: 'birthday' | 'anniversary' | 'yahrzeit' | 'holiday' | 'custom';
+    gregorianDate: admin.firestore.Timestamp;
+    useHebrewDate: boolean;
+    hebrewDate?: HebrewDateInfo;
+    isRecurring: boolean;
+    reminderConfig?: ReminderConfig;
+}
+
+interface UserData {
+    id: string;
+    email?: string;
+    phone?: string;
+    preferences?: {
+        notificationMethods?: ('email' | 'sms' | 'whatsapp')[];
+    };
+}
+
+interface NotificationResult {
+    method: string;
+    success: boolean;
+    error?: string;
+}
 
 admin.initializeApp();
 const db = admin.firestore();
 
-// Twilio Config
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const client = twilio(accountSid, authToken);
-const WHATSAPP_FROM = 'whatsapp:+14155238886'; // Sandbox
-const SMS_FROM = process.env.TWILIO_PHONE_NUMBER || '+15551234567';
+// Secrets configuration for functions
+const runtimeOpts: functions.RuntimeOptions = {
+    secrets: ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER', 'TWILIO_WHATSAPP_NUMBER', 'RESEND_API_KEY', 'FROM_EMAIL'],
+};
 
-// Resend Config for Email
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+function getTwilioClient(): TwilioClient {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    if (!accountSid || !authToken) {
+        throw new Error('Twilio credentials not configured');
+    }
+    return twilio(accountSid, authToken);
+}
+
+function getSmsFrom(): string {
+    const phone = process.env.TWILIO_PHONE_NUMBER;
+    if (!phone) {
+        throw new Error('TWILIO_PHONE_NUMBER not configured');
+    }
+    return phone;
+}
+
+function getWhatsAppFrom(): string {
+    // Use configured WhatsApp number, or fallback to SMS number with whatsapp: prefix
+    const whatsappNum = process.env.TWILIO_WHATSAPP_NUMBER;
+    if (whatsappNum) {
+        return whatsappNum.startsWith('whatsapp:') ? whatsappNum : `whatsapp:${whatsappNum}`;
+    }
+    // Fallback to Twilio sandbox for development (remove in production)
+    console.warn('TWILIO_WHATSAPP_NUMBER not configured, using Twilio sandbox');
+    return 'whatsapp:+14155238886';
+}
+
+function getResendApiKey(): string | undefined {
+    return process.env.RESEND_API_KEY;
+}
+
+function getFromEmail(): string {
+    return process.env.FROM_EMAIL || 'Family Days Reminder <noreply@familydaysreminder.com>';
+}
 
 // Helper: Send WhatsApp message
-async function sendWhatsApp(to: string, message: string) {
+async function sendWhatsApp(to: string, message: string): Promise<TwilioMessageInstance> {
+    const client = getTwilioClient();
     return await client.messages.create({
-        from: WHATSAPP_FROM,
+        from: getWhatsAppFrom(),
         to: `whatsapp:${to}`,
         body: message
     });
 }
 
 // Helper: Send SMS message
-async function sendSMS(to: string, message: string) {
+async function sendSMS(to: string, message: string): Promise<TwilioMessageInstance> {
+    const client = getTwilioClient();
     return await client.messages.create({
-        from: SMS_FROM,
+        from: getSmsFrom(),
         to: to,
         body: message
     });
 }
 
+// Email response type
+interface ResendEmailResponse {
+    id: string;
+}
+
 // Helper: Send Email via Resend
-async function sendEmail(to: string, message: string, subject: string = '🔔 Family Days Reminder') {
-    if (!RESEND_API_KEY) {
+async function sendEmail(to: string, message: string, subject: string = '🔔 Family Days Reminder'): Promise<ResendEmailResponse> {
+    const apiKey = getResendApiKey();
+    if (!apiKey) {
         throw new Error('RESEND_API_KEY not configured');
     }
 
     const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${RESEND_API_KEY}`,
+            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            from: FROM_EMAIL,
+            from: getFromEmail(),
             to: [to],
             subject: subject,
             html: `
@@ -67,15 +167,15 @@ async function sendEmail(to: string, message: string, subject: string = '🔔 Fa
     });
 
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to send email');
+        const errorData = await response.json() as { message?: string };
+        throw new Error(errorData.message || 'Failed to send email');
     }
 
-    return await response.json();
+    return await response.json() as ResendEmailResponse;
 }
 
 // Helper: Calculate days until event
-function getDaysUntilEvent(event: any, today: Date): number {
+function getDaysUntilEvent(event: FamilyEventData, today: Date): number {
     const todayHebrew = new HDate(today);
 
     if (event.useHebrewDate && event.hebrewDate) {
@@ -97,7 +197,7 @@ function getDaysUntilEvent(event: any, today: Date): number {
 }
 
 // Helper: Generate message based on timing
-function generateMessage(event: any, daysUntil: number, timeOfDay: string): string {
+function generateMessage(event: FamilyEventData, daysUntil: number, timeOfDay: string): string {
     const eventName = event.title;
 
     if (daysUntil === 3) {
@@ -118,17 +218,17 @@ function generateMessage(event: any, daysUntil: number, timeOfDay: string): stri
 
 // Helper: Send notification via user's preferred methods
 async function sendNotifications(
-    userData: any,
+    userData: UserData,
     message: string,
     eventId: string,
     userId: string,
     daysUntil: number,
     timeOfDay: string,
     today: Date
-) {
+): Promise<NotificationResult[]> {
     // Default to whatsapp if no preferences set (backwards compatibility)
-    const methods: string[] = userData.preferences?.notificationMethods || ['whatsapp'];
-    const results: { method: string; success: boolean; error?: string }[] = [];
+    const methods = userData.preferences?.notificationMethods || ['whatsapp'];
+    const results: NotificationResult[] = [];
 
     for (const method of methods) {
         const logKey = `${eventId}_${daysUntil}_${timeOfDay}_${method}_${today.toISOString().split('T')[0]}`;
@@ -197,7 +297,9 @@ async function sendNotifications(
 /**
  * MORNING CHECK - Runs at 9 AM EST daily
  */
-export const morningReminders = functions.pubsub
+export const morningReminders = functions
+    .runWith(runtimeOpts)
+    .pubsub
     .schedule('0 9 * * *')
     .timeZone('America/New_York')
     .onRun(async (context) => {
@@ -208,7 +310,9 @@ export const morningReminders = functions.pubsub
 /**
  * AFTERNOON CHECK - Runs at 2 PM EST daily
  */
-export const afternoonReminders = functions.pubsub
+export const afternoonReminders = functions
+    .runWith(runtimeOpts)
+    .pubsub
     .schedule('0 14 * * *')
     .timeZone('America/New_York')
     .onRun(async (context) => {
@@ -219,7 +323,9 @@ export const afternoonReminders = functions.pubsub
 /**
  * EVENING CHECK - Runs at 7 PM EST daily
  */
-export const eveningReminders = functions.pubsub
+export const eveningReminders = functions
+    .runWith(runtimeOpts)
+    .pubsub
     .schedule('0 19 * * *')
     .timeZone('America/New_York')
     .onRun(async (context) => {
@@ -230,12 +336,15 @@ export const eveningReminders = functions.pubsub
 /**
  * Core logic to process and send reminders
  */
-async function processReminders(timeOfDay: string, fallbackDaysToCheck: number[]) {
+async function processReminders(timeOfDay: string, fallbackDaysToCheck: number[]): Promise<void> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const eventsSnapshot = await db.collection('events').get();
-    const events = eventsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+    const events = eventsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    } as FamilyEventData));
 
     for (const event of events) {
         if (!event.userId) continue;
@@ -247,16 +356,16 @@ async function processReminders(timeOfDay: string, fallbackDaysToCheck: number[]
 
         if (event.reminderConfig?.isEnabled && event.reminderConfig?.reminders?.length > 0) {
             const matchingReminders = event.reminderConfig.reminders.filter(
-                (r: any) => r.timeOfDay === timeOfDay
+                (r) => r.timeOfDay === timeOfDay
             );
-            daysToCheck = matchingReminders.map((r: any) => r.daysBefore);
+            daysToCheck = matchingReminders.map((r) => r.daysBefore);
         }
 
         if (!daysToCheck.includes(daysUntil)) continue;
 
         // Get user data
         const userDoc = await db.collection('users').doc(event.userId).get();
-        const userData = userDoc.data();
+        const userData = userDoc.data() as UserData | undefined;
 
         if (!userData) continue;
 
@@ -268,7 +377,9 @@ async function processReminders(timeOfDay: string, fallbackDaysToCheck: number[]
 /**
  * HTTP endpoint for manual testing
  */
-export const testReminder = functions.https.onRequest(async (req, res) => {
+export const testReminder = functions
+    .runWith(runtimeOpts)
+    .https.onRequest(async (req, res) => {
     const { phone, email, message, method = 'whatsapp' } = req.query;
 
     if (!message) {
@@ -277,21 +388,23 @@ export const testReminder = functions.https.onRequest(async (req, res) => {
     }
 
     try {
-        let result;
+        let resultId: string = 'sent';
         switch (method) {
             case 'email':
                 if (!email) {
                     res.status(400).send('Missing email parameter');
                     return;
                 }
-                result = await sendEmail(String(email), String(message));
+                const emailResult = await sendEmail(String(email), String(message));
+                resultId = emailResult.id;
                 break;
             case 'sms':
                 if (!phone) {
                     res.status(400).send('Missing phone parameter');
                     return;
                 }
-                result = await sendSMS(String(phone), String(message));
+                const smsResult = await sendSMS(String(phone), String(message));
+                resultId = smsResult.sid;
                 break;
             case 'whatsapp':
             default:
@@ -299,10 +412,11 @@ export const testReminder = functions.https.onRequest(async (req, res) => {
                     res.status(400).send('Missing phone parameter');
                     return;
                 }
-                result = await sendWhatsApp(String(phone), String(message));
+                const whatsappResult = await sendWhatsApp(String(phone), String(message));
+                resultId = whatsappResult.sid;
                 break;
         }
-        res.json({ success: true, method, result: result?.sid || result?.id || 'sent' });
+        res.json({ success: true, method, result: resultId });
     } catch (err) {
         res.status(500).json({ error: String(err) });
     }

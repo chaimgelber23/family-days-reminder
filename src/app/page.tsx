@@ -6,11 +6,11 @@ import { EventModal, EventFormData } from '@/components/EventModal';
 import { FamilyEvent } from '@/lib/types';
 import { Timestamp, collection, doc, setDoc, deleteDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { SettingsModal } from '@/components/SettingsModal';
-import { Settings, Trash2, Calendar, Bell, Pencil, Filter } from 'lucide-react';
+import { Settings, Trash2, Calendar, Bell, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser } from '@/firebase/provider';
-import { toHebrewDate, formatHebrewDate } from '@/lib/hebrew-calendar';
+import { toHebrewDate, formatHebrewDate, getHebrewMonthNumber } from '@/lib/hebrew-calendar';
 import { format, differenceInDays, isBefore, startOfDay } from 'date-fns';
 
 type CalendarFilter = 'all' | 'english' | 'hebrew';
@@ -82,22 +82,6 @@ export default function DashboardPage() {
         setIsModalOpen(true);
     };
 
-    // Helper to parse date string without timezone issues
-    const parseDateString = (dateStr: string): Date => {
-        const [year, month, day] = dateStr.split('-').map(Number);
-        return new Date(year, month - 1, day, 12, 0, 0);
-    };
-
-    // Check for duplicate events
-    const checkDuplicate = (title: string, gregorianDate: Date, excludeEventId?: string): FamilyEvent | null => {
-        const dateStr = format(gregorianDate, 'yyyy-MM-dd');
-        return events.find(e => {
-            if (excludeEventId && e.id === excludeEventId) return false;
-            const eventDateStr = format(e.gregorianDate.toDate(), 'yyyy-MM-dd');
-            return e.title.toLowerCase() === title.toLowerCase() && eventDateStr === dateStr;
-        }) || null;
-    };
-
     const handleSaveEvent = async (data: EventFormData, existingEventId?: string) => {
         if (!user) {
             alert('Please sign in to save events');
@@ -114,10 +98,7 @@ export default function DashboardPage() {
                 day: data.hebrewDay,
                 monthName: data.hebrewMonth,
                 year: data.hebrewYear,
-                // We'll let the backend/helpers handle month index if needed, 
-                // but types say month is number. For now keeping simplified object structure
-                // or resolving real hebrew date from the gregorian if missing
-                month: 1 // Placeholder, will be fixed by toHebrewDate if needed or ignored
+                month: getHebrewMonthNumber(data.hebrewMonth)
             } : toHebrewDate(gregorianDate))
             : toHebrewDate(gregorianDate);
 
@@ -173,7 +154,7 @@ export default function DashboardPage() {
                     day: data.hebrewDay,
                     monthName: data.hebrewMonth,
                     year: data.hebrewYear,
-                    month: 1 // Placeholder
+                    month: getHebrewMonthNumber(data.hebrewMonth)
                 };
                 eventData.originalHebrewYear = data.hebrewYear;
             } else {
